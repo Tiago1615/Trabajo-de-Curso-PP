@@ -1,4 +1,4 @@
-CMakeFiles/glad.dir/dependencies/glad/src/glad.c.o: \
+CMakeFiles/TrabajoCursoPP.dir/dependencies/glad/src/glad.c.o: \
  /home/santi/PP/Trabajo_curso/dependencies/glad/src/glad.c \
  /usr/include/stdc-predef.h /usr/include/stdio.h \
  /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
