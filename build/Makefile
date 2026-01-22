@@ -117,6 +117,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named glad
+
+# Build rule for target.
+glad: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 glad
+.PHONY : glad
+
+# fast build rule for target.
+glad/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/build
+.PHONY : glad/fast
+
+#=============================================================================
 # Target rules for targets named TrabajoCursoPP
 
 # Build rule for target.
@@ -134,7 +147,7 @@ dependencies/glad/src/glad.o: dependencies/glad/src/glad.c.o
 
 # target to build an object file
 dependencies/glad/src/glad.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TrabajoCursoPP.dir/build.make CMakeFiles/TrabajoCursoPP.dir/dependencies/glad/src/glad.c.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/dependencies/glad/src/glad.c.o
 .PHONY : dependencies/glad/src/glad.c.o
 
 dependencies/glad/src/glad.i: dependencies/glad/src/glad.c.i
@@ -142,7 +155,7 @@ dependencies/glad/src/glad.i: dependencies/glad/src/glad.c.i
 
 # target to preprocess a source file
 dependencies/glad/src/glad.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TrabajoCursoPP.dir/build.make CMakeFiles/TrabajoCursoPP.dir/dependencies/glad/src/glad.c.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/dependencies/glad/src/glad.c.i
 .PHONY : dependencies/glad/src/glad.c.i
 
 dependencies/glad/src/glad.s: dependencies/glad/src/glad.c.s
@@ -150,7 +163,7 @@ dependencies/glad/src/glad.s: dependencies/glad/src/glad.c.s
 
 # target to generate assembly for a file
 dependencies/glad/src/glad.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/TrabajoCursoPP.dir/build.make CMakeFiles/TrabajoCursoPP.dir/dependencies/glad/src/glad.c.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/dependencies/glad/src/glad.c.s
 .PHONY : dependencies/glad/src/glad.c.s
 
 src/Camera.o: src/Camera.cpp.o
@@ -258,6 +271,7 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... TrabajoCursoPP"
+	@echo "... glad"
 	@echo "... dependencies/glad/src/glad.o"
 	@echo "... dependencies/glad/src/glad.i"
 	@echo "... dependencies/glad/src/glad.s"

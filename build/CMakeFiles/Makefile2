@@ -63,6 +63,7 @@ CMAKE_BINARY_DIR = /home/santi/PP/Trabajo_curso/build
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
+all: CMakeFiles/glad.dir/all
 all: CMakeFiles/TrabajoCursoPP.dir/all
 .PHONY : all
 
@@ -71,22 +72,49 @@ preinstall:
 .PHONY : preinstall
 
 # The main recursive "clean" target.
+clean: CMakeFiles/glad.dir/clean
 clean: CMakeFiles/TrabajoCursoPP.dir/clean
 .PHONY : clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/glad.dir
+
+# All Build rule for target.
+CMakeFiles/glad.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/santi/PP/Trabajo_curso/build/CMakeFiles --progress-num=6,7 "Built target glad"
+.PHONY : CMakeFiles/glad.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/glad.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/santi/PP/Trabajo_curso/build/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/glad.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/santi/PP/Trabajo_curso/build/CMakeFiles 0
+.PHONY : CMakeFiles/glad.dir/rule
+
+# Convenience name for target.
+glad: CMakeFiles/glad.dir/rule
+.PHONY : glad
+
+# clean rule for target.
+CMakeFiles/glad.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/clean
+.PHONY : CMakeFiles/glad.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/TrabajoCursoPP.dir
 
 # All Build rule for target.
-CMakeFiles/TrabajoCursoPP.dir/all:
+CMakeFiles/TrabajoCursoPP.dir/all: CMakeFiles/glad.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/TrabajoCursoPP.dir/build.make CMakeFiles/TrabajoCursoPP.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/TrabajoCursoPP.dir/build.make CMakeFiles/TrabajoCursoPP.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/santi/PP/Trabajo_curso/build/CMakeFiles --progress-num=1,2,3,4,5,6 "Built target TrabajoCursoPP"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/santi/PP/Trabajo_curso/build/CMakeFiles --progress-num=1,2,3,4,5 "Built target TrabajoCursoPP"
 .PHONY : CMakeFiles/TrabajoCursoPP.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/TrabajoCursoPP.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/santi/PP/Trabajo_curso/build/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/santi/PP/Trabajo_curso/build/CMakeFiles 7
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/TrabajoCursoPP.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/santi/PP/Trabajo_curso/build/CMakeFiles 0
 .PHONY : CMakeFiles/TrabajoCursoPP.dir/rule

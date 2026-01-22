@@ -8,7 +8,6 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/santi/PP/Trabajo_curso/dependencies/glad/src/glad.c" "CMakeFiles/TrabajoCursoPP.dir/dependencies/glad/src/glad.c.o" "gcc" "CMakeFiles/TrabajoCursoPP.dir/dependencies/glad/src/glad.c.o.d"
   "/home/santi/PP/Trabajo_curso/src/Camera.cpp" "CMakeFiles/TrabajoCursoPP.dir/src/Camera.cpp.o" "gcc" "CMakeFiles/TrabajoCursoPP.dir/src/Camera.cpp.o.d"
   "/home/santi/PP/Trabajo_curso/src/Renderer.cpp" "CMakeFiles/TrabajoCursoPP.dir/src/Renderer.cpp.o" "gcc" "CMakeFiles/TrabajoCursoPP.dir/src/Renderer.cpp.o.d"
   "/home/santi/PP/Trabajo_curso/src/Trajectory.cpp" "CMakeFiles/TrabajoCursoPP.dir/src/Trajectory.cpp.o" "gcc" "CMakeFiles/TrabajoCursoPP.dir/src/Trajectory.cpp.o.d"
