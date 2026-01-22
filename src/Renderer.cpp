@@ -1,5 +1,7 @@
 #include "Renderer.h"
 
+using namespace std;
+
 void Renderer::initGrid(){
     vector<float> grid;
 

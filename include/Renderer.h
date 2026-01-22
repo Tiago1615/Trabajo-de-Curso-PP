@@ -2,14 +2,12 @@
 #include <vector>
 #include <glad/glad.h>
 
-using namespace std;
-
 class Renderer
 {
     public:
         void initGrid();
-        void initWalls(const vector<float>& wallVertices);
-        void initTrajectory(const vector<float>& trajVertices);
+        void initWalls(const std::vector<float>& wallVertices);
+        void initTrajectory(const std::vector<float>& trajVertices);
         void initFloor(float size);
 
         void drawGrid() const;
@@ -17,7 +15,7 @@ class Renderer
         void drawTrajectory() const;
         void drawFloor() const;
 
-        void addWall(vector<float>& v, float x0, float y0, float x1, float y1, float h);
+        void addWall(std::vector<float>& v, float x0, float y0, float x1, float y1, float h);
     private:
         GLuint gridVAO = 0, gridVBO = 0;
         GLuint wallVAO = 0, wallVBO = 0;

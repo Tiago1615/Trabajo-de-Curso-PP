@@ -13,6 +13,7 @@
 #include "Camera.h"
 #include "Renderer.h"
 #include "Trajectory.h"
+#include "Shaders_Utils.h"
 
 using namespace std;
 
@@ -24,52 +25,20 @@ void framebuffer_size_callback(GLFWwindow*, int w, int h)
     glViewport(0, 0, w, h);
 }
 
-string loadTextFile(const string& path)
-{
-    ifstream file(path);
-    if (!file)
-        throw runtime_error("No se pudo abrir: " + path);
-
-    stringstream ss;
-    ss << file.rdbuf();
-    return ss.str();
-}
-
-GLuint compileShader(GLenum type, const char* src)
-{
-    GLuint s = glCreateShader(type);
-    glShaderSource(s, 1, &src, nullptr);
-    glCompileShader(s);
-
-    int ok;
-    glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
-    if (!ok)
-    {
-        char log[512];
-        glGetShaderInfoLog(s, 512, nullptr, log);
-        cerr << log << endl;
-    }
-    return s;
-}
-
 // ------------------------------------------------------------
 // MAIN
 // ------------------------------------------------------------
 int main()
 {
     // --------------------------------------------------------
-    // GLFW / OpenGL
+    // GLFW
     // --------------------------------------------------------
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(
-        1280, 720,
-        "Trabajo Curso PP - Trajectory Viewer",
-        nullptr, nullptr
-    );
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "Trabajo Curso PP - Trajectory Viewer", nullptr, nullptr);
 
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -77,7 +46,16 @@ int main()
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     glEnable(GL_DEPTH_TEST);
 
-    cout << "OpenGL: " << glGetString(GL_VERSION) << endl;
+    cout << "OpenGL: " << glGetString(GL_VERSION) << endl << endl;
+
+    cout << "=====================================\n";
+    cout << "Trajectory Viewer - Controls\n";
+    cout << "-------------------------------------\n";
+    cout << "SPACE : Pause / Play\n";
+    cout << "R     : Reset trajectory\n";
+    cout << "V     : Change view (1st / 3rd person)\n";
+    cout << "ESC   : Exit\n";
+    cout << "=====================================\n\n";
 
     // --------------------------------------------------------
     // Shaders
@@ -134,10 +112,12 @@ int main()
     renderer.initFloor(10.0f);
 
     bool paused = false;
+    bool thirdPerson = false;
 
-    // para evitar múltiples toggles por pulsación
+    // para evitar múltiples activaciones por pulsación
     bool spacePressedLastFrame = false;
     bool rPressedLastFrame = false;
+    bool vPressedLastFrame = false;
 
     // --------------------------------------------------------
     // Loop
@@ -152,6 +132,7 @@ int main()
         // --------------------------------------
         bool spaceNow = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
         bool rNow     = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
+        bool vNow = glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS;
 
         // Toggle pausa
         if (spaceNow && !spacePressedLastFrame)
@@ -167,6 +148,12 @@ int main()
         }
         rPressedLastFrame = rNow;
 
+        if (vNow && !vPressedLastFrame)
+        {
+            thirdPerson = !thirdPerson;
+        }
+        vPressedLastFrame = vNow;
+
         float now = glfwGetTime();
         float dt = now - last;
         last = now;
@@ -178,9 +165,26 @@ int main()
         int idx = min((int)(t / trajDt), (int)trajectory.size() - 1);
         const auto& p = trajectory[idx];
 
-        camera.updateFromTrajectory(p.x, p.y, p.z, p.theta);
+        glm::mat4 view;
+        if (!thirdPerson){
+            camera.updateFromTrajectory(p.x, p.y, p.z, p.theta);
+            view = camera.getViewMatrix();
+        }
+        else{
+            glm::vec3 target(p.x, p.y, p.z);
 
-        glm::mat4 view = camera.getViewMatrix();
+            glm::vec3 forward(cos(p.theta),sin(p.theta),0.0f);
+
+            float backDist = 4.0f;
+            float height   = 2.0f;
+
+            glm::vec3 camPos = target - forward * backDist + glm::vec3(0, 0, height);
+
+            camera.setPosition(camPos);
+            camera.lookAt(target);
+            view = glm::lookAt(camPos, target, glm::vec3(0, 0, 1));
+        }
+
         glm::mat4 proj = glm::perspective(
             glm::radians(60.f),
             1280.f / 720.f,

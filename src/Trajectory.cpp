@@ -3,6 +3,8 @@
 #include <sstream>
 #include <stdexcept>
 
+using namespace std;
+
 vector<TrajectoryPoint> loadTrajectory(const string& path)
 {
     vector<TrajectoryPoint> t;
