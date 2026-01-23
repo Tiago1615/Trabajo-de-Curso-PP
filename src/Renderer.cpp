@@ -1,4 +1,6 @@
 #include "Renderer.h"
+#include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
 
 using namespace std;
 
@@ -81,6 +83,35 @@ void Renderer::initFloor(float size){
     glEnableVertexAttribArray(0);
 }
 
+void Renderer::initAgent(float radius){
+    vector<float> vertices;
+
+    const int segments = 32;
+    for (int i = 0; i < segments; ++i){
+        float a0 = 2.0f * M_PI * i / segments;
+        float a1 = 2.0f * M_PI * (i + 1) / segments;
+
+        // Triángulo en X-Y
+        vertices.insert(vertices.end(), {
+            0.0f, 0.0f, 0.0f,
+            radius * cos(a0), radius * sin(a0), 0.0f,
+            radius * cos(a1), radius * sin(a1), 0.0f
+        });
+    }
+
+    agentVertexCount = vertices.size() / 3;
+
+    glGenVertexArrays(1, &agentVAO);
+    glGenBuffers(1, &agentVBO);
+
+    glBindVertexArray(agentVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, agentVBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+    glEnableVertexAttribArray(0);
+}
+
 void Renderer::drawGrid() const{
     glBindVertexArray(gridVAO);
     glDrawArrays(GL_LINES, 0, gridCount);
@@ -113,4 +144,18 @@ void Renderer::addWall(vector<float>& v, float x0, float y0, float x1, float y1,
         x1, y1, h,
         x0, y0, h
     });
-} 
+}
+
+void Renderer::drawAgent(const glm::vec3& position, float theta) const{
+    glm::mat4 model(1.0f);
+    model = glm::translate(model, position);
+    model = glm::rotate(model, theta, glm::vec3(0, 0, 1));
+
+    GLuint program;
+    glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &program);
+
+    glUniformMatrix4fv(glGetUniformLocation(program, "uModel"), 1, GL_FALSE, &model[0][0]);
+
+    glBindVertexArray(agentVAO);
+    glDrawArrays(GL_TRIANGLES, 0, agentVertexCount);
+}

@@ -54,7 +54,6 @@ int main()
     cout << "SPACE : Pause / Play\n";
     cout << "R     : Reset trajectory\n";
     cout << "V     : Change view (1st / 3rd person)\n";
-    cout << "ESC   : Exit\n";
     cout << "=====================================\n\n";
 
     // --------------------------------------------------------
@@ -110,6 +109,7 @@ int main()
     renderer.initTrajectory(trajVertices);
     renderer.initWalls(walls);
     renderer.initFloor(10.0f);
+    renderer.initAgent(0.25f);
 
     bool paused = false;
     bool thirdPerson = false;
@@ -199,11 +199,13 @@ int main()
 
         glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
         glm::vec3 camPos = camera.getPosition();
+        glm::mat4 identity(1.0f);
         glUniform3fv(glGetUniformLocation(program, "uLightDir"), 1, &lightDir[0]);
         glUniform3fv(glGetUniformLocation(program, "uViewPos"), 1, &camPos[0]);
 
-        glUniformMatrix4fv(glGetUniformLocation(program,"uView"),1,GL_FALSE,&view[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(program,"uProj"),1,GL_FALSE,&proj[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(program, "uView"), 1, GL_FALSE, &view[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(program, "uProj"), 1, GL_FALSE, &proj[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(program, "uModel"), 1, GL_FALSE, &identity[0][0]);
 
         // Floor
         glEnable(GL_POLYGON_OFFSET_FILL);
@@ -223,6 +225,11 @@ int main()
         // Walls
         glUniform3f(glGetUniformLocation(program,"uColor"),0.2f,0.7f,0.8f);
         renderer.drawWalls();
+
+        // Agent
+        glm::vec3 agentPos(p.x, p.y, p.z);
+        glUniform3f(glGetUniformLocation(program, "uColor"), 0.9f, 0.9f, 0.1f);
+        renderer.drawAgent(agentPos, p.theta);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
