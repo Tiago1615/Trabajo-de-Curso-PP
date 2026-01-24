@@ -25,15 +25,29 @@ void framebuffer_size_callback(GLFWwindow*, int w, int h)
     glViewport(0, 0, w, h);
 }
 
+struct NamedColor {
+    glm::vec3 rgb;
+    string name;
+};
+const vector<NamedColor> palette = {
+    {{0.90f, 0.20f, 0.20f}, "Red"},
+    {{0.20f, 0.60f, 0.90f}, "Blue"},
+    {{0.20f, 0.80f, 0.30f}, "Green"},
+    {{0.90f, 0.80f, 0.20f}, "Yellow"},
+    {{0.70f, 0.40f, 0.90f}, "Purple"},
+    {{0.20f, 0.90f, 0.80f}, "Cyan"}
+};
+
 struct TrajectorySim
 {
     vector<TrajectoryPoint> samples;
     GLuint VAO = 0;
     GLuint VBO = 0;
     GLsizei count = 0;
-    glm::vec3 color;
 
-    // estado dinámico
+    glm::vec3 color;
+    string colorName;
+    string label;
     size_t currentIdx = 0;
 };
 vector<TrajectorySim> sims;
@@ -68,7 +82,7 @@ int main()
     cout << "-------------------------------------\n";
     cout << "SPACE : Pause / Play\n";
     cout << "R     : Reset trajectory\n";
-    cout << "=====================================\n\n";
+    cout << "=====================================\n";
 
     // --------------------------------------------------------
     // Shaders
@@ -115,10 +129,14 @@ int main()
     // --------------------------------------------------------
     // Cargar trayectorias
     // --------------------------------------------------------
-    auto loadTrajectorySim = [&](const string& path)
+    auto loadTrajectorySim = [&](const string& path, const string& label, int colorIdx)
     {
         TrajectorySim sim;
         sim.samples = loadTrajectory(path);
+        sim.label = label;
+
+        sim.color = palette[sims.size() % palette.size()].rgb;
+        sim.colorName = palette[sims.size() % palette.size()].name;
 
         vector<float> verts;
         for (const auto& p : sim.samples){
@@ -127,21 +145,19 @@ int main()
             verts.push_back(p.z);
         }
 
-        sim.color = glm::vec3(0.3f + 0.7f * rand() / float(RAND_MAX), 0.3f + 0.7f * rand() / float(RAND_MAX), 0.3f + 0.7f * rand() / float(RAND_MAX));
-
         renderer.initTrajectory(sim.VAO, sim.VBO, sim.count, verts);
         sims.push_back(sim);
     };
 
     // Trayectorias donde se varía la velocidad lineal
-    loadTrajectorySim("../assets/trajectories/vel/traj_v_0.50.txt");
-    loadTrajectorySim("../assets/trajectories/vel/traj_v_1.00.txt");
-    loadTrajectorySim("../assets/trajectories/vel/traj_v_1.50.txt");
+    loadTrajectorySim("../assets/trajectories/vel/traj_v_0.50.txt", "v = 0.50 m/s", 0);
+    loadTrajectorySim("../assets/trajectories/vel/traj_v_1.00.txt", "v = 1.00 m/s", 1);
+    loadTrajectorySim("../assets/trajectories/vel/traj_v_1.50.txt", "v = 1.50 m/s", 2);
 
     // Trayectorias donde se varía la velocidad angular
-    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_0.79.txt");
-    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_1.57.txt");
-    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_3.14.txt");
+    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_0.79.txt", "w = 0.79 rad/s", 3);
+    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_1.57.txt", "w = 1.57 rad/s", 4);
+    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_3.14.txt", "w = 3.14 rad/s", 5);
 
     // --------------------------------------------------------
     // Parámetros de control de la simulación
@@ -158,7 +174,7 @@ int main()
     bool rPressedLastFrame = false;
 
     // --------------------------------------------------------
-    // Loop
+    // Bucle de renderizado
     // --------------------------------------------------------
 
     while (!glfwWindowShouldClose(window)){
@@ -197,6 +213,21 @@ int main()
             }
         }
 
+        // --------------------------------------
+        // Leyenda
+        // --------------------------------------
+
+        static bool printedLegend = false;
+        if (!printedLegend){
+            for (size_t i = 0; i < sims.size(); ++i){
+                cout << "[" << i << "] "
+                    << sims[i].label
+                    << " | Color: " << sims[i].colorName << "\n";
+            }
+            cout << "=========================================\n";
+            printedLegend = true;
+        }
+
         glClearColor(0.1f, 0.1f, 0.12f, 1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -227,12 +258,10 @@ int main()
         glUniform3f(uColorLoc,0.6f,0.6f,0.6f);
         renderer.drawGrid();
 
-        // Trayectorias
-        for (const auto& sim : sims){
-            glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, &identity[0][0]);
-            glUniform3fv(uColorLoc, 1, &sim.color[0]);
-            renderer.drawTrajectory(sim.VAO, sim.count);
-        }
+        // Trayectoria
+        glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, &identity[0][0]);
+        glUniform3fv(uColorLoc, 1, &sims[0].color[0]);
+        renderer.drawTrajectory(sims[0].VAO, sims[0].count);
 
         // Agentes
         for (auto& sim : sims){
