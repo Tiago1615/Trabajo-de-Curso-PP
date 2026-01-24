@@ -50,7 +50,63 @@ struct TrajectorySim
     string label;
     size_t currentIdx = 0;
 };
-vector<TrajectorySim> sims;
+vector<TrajectorySim> simsVel;
+vector<TrajectorySim> simsOmega;
+
+enum class ViewMode {
+    Velocity,
+    Angular
+};
+
+ViewMode currentView = ViewMode::Velocity;
+
+// Parametros cámara orbital
+float camYaw   = -90.0f;
+float camPitch = 30.0f;
+float camDist  = 12.0f;
+
+bool firstMouse = true;
+float lastX = 640.0f;
+float lastY = 360.0f;
+
+glm::vec3 camTarget(3.0f, 3.0f, 1.0f);
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    // Solo rotar si está pulsado el botón izquierdo
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) != GLFW_PRESS){
+        // Para que al volver a pulsar no pegue un salto:
+        firstMouse = true;
+        return;
+    }
+
+    if (firstMouse){
+        lastX = (float)xpos;
+        lastY = (float)ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = (float)xpos - lastX;
+    float yoffset = lastY - (float)ypos; // invertido
+
+    lastX = (float)xpos;
+    lastY = (float)ypos;
+
+    const float sensitivity = 0.1f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    camYaw   += xoffset;
+    camPitch += yoffset;
+
+    camPitch = clamp(camPitch, 5.0f, 85.0f);
+}
+
+void scroll_callback(GLFWwindow* window, double /*xoffset*/, double yoffset)
+{
+    camDist -= (float)yoffset;
+    camDist = clamp(camDist, 3.0f, 30.0f);
+}
 
 // ------------------------------------------------------------
 // Main
@@ -67,6 +123,10 @@ int main()
 
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Trabajo Curso PP - Trajectory Viewer", nullptr, nullptr);
 
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -77,12 +137,16 @@ int main()
 
     cout << "OpenGL: " << glGetString(GL_VERSION) << endl << endl;
 
-    cout << "=====================================\n";
+    cout << "=======================================================\n";
     cout << "Trajectory Viewer - Controls\n";
-    cout << "-------------------------------------\n";
+    cout << "-------------------------------------------------------\n";
     cout << "SPACE : Pause / Play\n";
     cout << "R     : Reset trajectory\n";
-    cout << "=====================================\n";
+    cout << "1     : View trajectories with different linear speed\n";
+    cout << "2     : View trajectories with different angular speed\n";
+    cout << "Mouse : Rotate camera (hold left button)\n";
+    cout << "Scroll: Zoom in / out\n";
+    cout << "=======================================================\n";
 
     // --------------------------------------------------------
     // Shaders
@@ -96,10 +160,14 @@ int main()
     GLint uLightDirLoc = glGetUniformLocation(program, "uLightDir");
     GLint uViewPosLoc  = glGetUniformLocation(program, "uViewPos");
 
+    // Luz global
+    const glm::vec3 worldLightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
+
     // --------------------------------------------------------
     // Cámara global
     // --------------------------------------------------------
     Camera camera;
+
     camera.setPosition({4.0f, -8.0f, 6.0f});
     camera.lookAt({3.0f, 3.0f, 1.0f});
 
@@ -129,14 +197,15 @@ int main()
     // --------------------------------------------------------
     // Cargar trayectorias
     // --------------------------------------------------------
-    auto loadTrajectorySim = [&](const string& path, const string& label, int colorIdx)
+    auto loadTrajectorySim = [&](vector<TrajectorySim>& target, const string& path, const string& label, int colorIdx)
     {
         TrajectorySim sim;
         sim.samples = loadTrajectory(path);
         sim.label = label;
 
-        sim.color = palette[sims.size() % palette.size()].rgb;
-        sim.colorName = palette[sims.size() % palette.size()].name;
+        int idx = colorIdx % (int)palette.size();
+        sim.color = palette[idx].rgb;
+        sim.colorName = palette[idx].name;
 
         vector<float> verts;
         for (const auto& p : sim.samples){
@@ -146,18 +215,18 @@ int main()
         }
 
         renderer.initTrajectory(sim.VAO, sim.VBO, sim.count, verts);
-        sims.push_back(sim);
+        target.push_back(sim);
     };
 
     // Trayectorias donde se varía la velocidad lineal
-    loadTrajectorySim("../assets/trajectories/vel/traj_v_0.50.txt", "v = 0.50 m/s", 0);
-    loadTrajectorySim("../assets/trajectories/vel/traj_v_1.00.txt", "v = 1.00 m/s", 1);
-    loadTrajectorySim("../assets/trajectories/vel/traj_v_1.50.txt", "v = 1.50 m/s", 2);
+    loadTrajectorySim(simsVel, "../assets/trajectories/vel/traj_v_0.50.txt", "v = 0.50 m/s", 0);
+    loadTrajectorySim(simsVel, "../assets/trajectories/vel/traj_v_1.00.txt", "v = 1.00 m/s", 1);
+    loadTrajectorySim(simsVel, "../assets/trajectories/vel/traj_v_1.50.txt", "v = 1.50 m/s", 2);
 
     // Trayectorias donde se varía la velocidad angular
-    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_0.79.txt", "w = 0.79 rad/s", 3);
-    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_1.57.txt", "w = 1.57 rad/s", 4);
-    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_3.14.txt", "w = 3.14 rad/s", 5);
+    loadTrajectorySim(simsOmega, "../assets/trajectories/vel_angular/traj_omega_0.79.txt", "w = 0.79 rad/s", 3);
+    loadTrajectorySim(simsOmega, "../assets/trajectories/vel_angular/traj_omega_1.57.txt", "w = 1.57 rad/s", 4);
+    loadTrajectorySim(simsOmega, "../assets/trajectories/vel_angular/traj_omega_3.14.txt", "w = 3.14 rad/s", 5);
 
     // --------------------------------------------------------
     // Parámetros de control de la simulación
@@ -185,8 +254,7 @@ int main()
         bool rNow     = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
 
         // Toggle pausa
-        if (spaceNow && !spacePressedLastFrame)
-        {
+        if (spaceNow && !spacePressedLastFrame){
             paused = !paused;
         }
         spacePressedLastFrame = spaceNow;
@@ -202,14 +270,30 @@ int main()
         float dt = now - last;
         last = now;
 
-        if (!paused)
-        {
+        // Cambiar visualización (velocidad lineal / angular)
+        if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS){
+            currentView = ViewMode::Velocity;
+            t = 0.0f;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS){
+            currentView = ViewMode::Angular;
+            t = 0.0f;
+        }
+
+        vector<TrajectorySim>* activeSims = nullptr;
+        if (currentView == ViewMode::Velocity){
+            activeSims = &simsVel;
+        }
+        else{
+            activeSims = &simsOmega;
+        }
+
+        if (!paused){
             t += dt;
 
-            for (auto& sim : sims)
-            {
+            for (auto& sim : *activeSims){
                 size_t idx = (size_t)(t / trajDt);
-                sim.currentIdx = std::min(idx, sim.samples.size() - 1);
+                sim.currentIdx = min(idx, sim.samples.size() - 1);
             }
         }
 
@@ -217,15 +301,23 @@ int main()
         // Leyenda
         // --------------------------------------
 
-        static bool printedLegend = false;
-        if (!printedLegend){
-            for (size_t i = 0; i < sims.size(); ++i){
-                cout << "[" << i << "] "
-                    << sims[i].label
-                    << " | Color: " << sims[i].colorName << "\n";
+        static bool firstLegend = true;
+        if (firstLegend){
+            cout << "Legend\n";
+            cout << "=======================================================\n";
+            cout << "Trajectories with different linear speed\n";
+            cout << "-------------------------------------------------------\n";
+            for (size_t i = 0; i < simsVel.size(); ++i){
+                cout << "[" << i << "] " << simsVel[i].label << " | Color: " << simsVel[i].colorName << "\n";
             }
-            cout << "=========================================\n";
-            printedLegend = true;
+            cout << "=======================================================\n";
+            cout << "Trajectories with different angular speed\n";
+            cout << "-------------------------------------------------------\n";
+            for (size_t i = 0; i < simsOmega.size(); ++i){
+                cout << "[" << i << "] " << simsOmega[i].label << " | Color: " << simsOmega[i].colorName << "\n";
+            }
+            cout << "=======================================================\n";
+            firstLegend = false;
         }
 
         glClearColor(0.1f, 0.1f, 0.12f, 1);
@@ -233,16 +325,23 @@ int main()
 
         glUseProgram(program);
 
+        glm::vec3 camPos;
+        camPos.x = camTarget.x + camDist * cos(glm::radians(camPitch)) * cos(glm::radians(camYaw));
+        camPos.y = camTarget.y + camDist * cos(glm::radians(camPitch)) * sin(glm::radians(camYaw));
+        camPos.z = camTarget.z + camDist * sin(glm::radians(camPitch));
+
+        camera.setPosition(camPos);
+        camera.lookAt(camTarget);
+
         glm::mat4 view = camera.getViewMatrix();
         glm::mat4 proj = glm::perspective(glm::radians(60.f), 1280.f / 720.f, 0.1f, 100.f);
 
         glUniformMatrix4fv(uViewLoc, 1, GL_FALSE, &view[0][0]);
         glUniformMatrix4fv(uProjLoc, 1, GL_FALSE, &proj[0][0]);
 
-        glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
-        glm::vec3 camPos = camera.getPosition();
-        glUniform3fv(uLightDirLoc, 1, &lightDir[0]);
-        glUniform3fv(uViewPosLoc, 1, &camPos[0]);
+        glm::vec3 viewPos = camera.getPosition();
+        glUniform3fv(uLightDirLoc, 1, &worldLightDir[0]);
+        glUniform3fv(uViewPosLoc, 1, &viewPos[0]);
 
         glm::mat4 identity(1.0f);
         glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, &identity[0][0]);
@@ -260,13 +359,12 @@ int main()
 
         // Trayectoria
         glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, &identity[0][0]);
-        glUniform3fv(uColorLoc, 1, &sims[0].color[0]);
-        renderer.drawTrajectory(sims[0].VAO, sims[0].count);
+        glUniform3fv(uColorLoc, 1, &(*activeSims)[0].color[0]);
+        renderer.drawTrajectory((*activeSims)[0].VAO, (*activeSims)[0].count);
 
         // Agentes
-        for (auto& sim : sims){
+        for (auto& sim : *activeSims){
             const auto& p = sim.samples[sim.currentIdx];
-
             glUniform3fv(uColorLoc, 1, &sim.color[0]);
             renderer.drawAgent({p.x, p.y, p.z}, p.theta);
         }
