@@ -39,14 +39,14 @@ void Renderer::initWalls(const vector<float>& wallVertices){
     glEnableVertexAttribArray(0);
 }
 
-void Renderer::initTrajectory(const vector<float>& trajVertices){
+void Renderer::initTrajectory(GLuint& VAO, GLuint& VBO, GLsizei& trajCount, const std::vector<float>& trajVertices){
     trajCount = trajVertices.size() / 3;
 
-    glGenVertexArrays(1, &trajVAO);
-    glGenBuffers(1, &trajVBO);
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
 
-    glBindVertexArray(trajVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, trajVBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, trajVertices.size() * sizeof(float), trajVertices.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -122,28 +122,14 @@ void Renderer::drawWalls() const{
     glDrawArrays(GL_TRIANGLES, 0, wallCount);
 }
 
-void Renderer::drawTrajectory() const{
-    glBindVertexArray(trajVAO);
+void Renderer::drawTrajectory(GLuint VAO, GLsizei trajCount) const{
+    glBindVertexArray(VAO);
     glDrawArrays(GL_LINE_STRIP, 0, trajCount);
 }
 
 void Renderer::drawFloor() const{
     glBindVertexArray(floorVAO);
     glDrawArrays(GL_TRIANGLES, 0, floorCount);
-}
-
-void Renderer::addWall(vector<float>& v, float x0, float y0, float x1, float y1, float h){
-    v.insert(v.end(), {
-        x0, y0, 0.0f,
-        x1, y1, 0.0f,
-        x1, y1, h
-    });
-
-    v.insert(v.end(), {
-        x0, y0, 0.0f,
-        x1, y1, h,
-        x0, y0, h
-    });
 }
 
 void Renderer::drawAgent(const glm::vec3& position, float theta) const{
@@ -158,4 +144,18 @@ void Renderer::drawAgent(const glm::vec3& position, float theta) const{
 
     glBindVertexArray(agentVAO);
     glDrawArrays(GL_TRIANGLES, 0, agentVertexCount);
+}
+
+void Renderer::addWall(vector<float>& v, float x0, float y0, float x1, float y1, float h){
+    v.insert(v.end(), {
+        x0, y0, 0.0f,
+        x1, y1, 0.0f,
+        x1, y1, h
+    });
+
+    v.insert(v.end(), {
+        x0, y0, 0.0f,
+        x1, y1, h,
+        x0, y0, h
+    });
 }

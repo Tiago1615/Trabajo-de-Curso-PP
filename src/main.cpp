@@ -25,13 +25,26 @@ void framebuffer_size_callback(GLFWwindow*, int w, int h)
     glViewport(0, 0, w, h);
 }
 
+struct TrajectorySim
+{
+    vector<TrajectoryPoint> samples;
+    GLuint VAO = 0;
+    GLuint VBO = 0;
+    GLsizei count = 0;
+    glm::vec3 color;
+
+    // estado dinámico
+    size_t currentIdx = 0;
+};
+vector<TrajectorySim> sims;
+
 // ------------------------------------------------------------
-// MAIN
+// Main
 // ------------------------------------------------------------
 int main()
 {
     // --------------------------------------------------------
-    // GLFW
+    // Inicializar OpenGL (ventanas, contexto, glad)
     // --------------------------------------------------------
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -44,6 +57,8 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+
+    glViewport(0, 0, 1280, 720);
     glEnable(GL_DEPTH_TEST);
 
     cout << "OpenGL: " << glGetString(GL_VERSION) << endl << endl;
@@ -53,46 +68,35 @@ int main()
     cout << "-------------------------------------\n";
     cout << "SPACE : Pause / Play\n";
     cout << "R     : Reset trajectory\n";
-    cout << "V     : Change view (1st / 3rd person)\n";
     cout << "=====================================\n\n";
 
     // --------------------------------------------------------
     // Shaders
     // --------------------------------------------------------
-    string vsrc = loadTextFile("../assets/shaders/basic.vert");
-    string fsrc = loadTextFile("../assets/shaders/basic.frag");
+    GLuint program = createProgramFromFiles("../assets/shaders/basic.vert", "../assets/shaders/basic.frag");
 
-    GLuint vs = compileShader(GL_VERTEX_SHADER, vsrc.c_str());
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsrc.c_str());
-
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    GLint uModelLoc = glGetUniformLocation(program, "uModel");
+    GLint uColorLoc = glGetUniformLocation(program, "uColor");
+    GLint uViewLoc  = glGetUniformLocation(program, "uView");
+    GLint uProjLoc  = glGetUniformLocation(program, "uProj");
+    GLint uLightDirLoc = glGetUniformLocation(program, "uLightDir");
+    GLint uViewPosLoc  = glGetUniformLocation(program, "uViewPos");
 
     // --------------------------------------------------------
-    // Cargar trayectoria
-    // --------------------------------------------------------
-    auto trajectory = loadTrajectory("../assets/trajectories/traj_base.txt");
-
-    vector<float> trajVertices;
-    for (const auto& p : trajectory){
-        trajVertices.push_back(p.x);
-        trajVertices.push_back(p.y);
-        trajVertices.push_back(p.z);
-    }
-
-    // --------------------------------------------------------
-    // Crear subsistemas
+    // Cámara global
     // --------------------------------------------------------
     Camera camera;
+    camera.setPosition({4.0f, -8.0f, 6.0f});
+    camera.lookAt({3.0f, 3.0f, 1.0f});
+
+    // --------------------------------------------------------
+    // Renderer
+    // --------------------------------------------------------
     Renderer renderer;
-
     renderer.initGrid();
+    renderer.initFloor(10.0f);
+    renderer.initAgent(0.25f);
 
-    // paredes EXACTAS como definiste
     vector<float> walls;
     float H = 3.0f;
 
@@ -106,25 +110,56 @@ int main()
     renderer.addWall(walls,  2, 2,  4, 2, H);
     renderer.addWall(walls,  4, 2,  4, 0, H);
 
-    renderer.initTrajectory(trajVertices);
     renderer.initWalls(walls);
-    renderer.initFloor(10.0f);
-    renderer.initAgent(0.25f);
+
+    // --------------------------------------------------------
+    // Cargar trayectorias
+    // --------------------------------------------------------
+    auto loadTrajectorySim = [&](const string& path)
+    {
+        TrajectorySim sim;
+        sim.samples = loadTrajectory(path);
+
+        vector<float> verts;
+        for (const auto& p : sim.samples){
+            verts.push_back(p.x);
+            verts.push_back(p.y);
+            verts.push_back(p.z);
+        }
+
+        sim.color = glm::vec3(0.3f + 0.7f * rand() / float(RAND_MAX), 0.3f + 0.7f * rand() / float(RAND_MAX), 0.3f + 0.7f * rand() / float(RAND_MAX));
+
+        renderer.initTrajectory(sim.VAO, sim.VBO, sim.count, verts);
+        sims.push_back(sim);
+    };
+
+    // Trayectorias donde se varía la velocidad lineal
+    loadTrajectorySim("../assets/trajectories/vel/traj_v_0.50.txt");
+    loadTrajectorySim("../assets/trajectories/vel/traj_v_1.00.txt");
+    loadTrajectorySim("../assets/trajectories/vel/traj_v_1.50.txt");
+
+    // Trayectorias donde se varía la velocidad angular
+    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_0.79.txt");
+    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_1.57.txt");
+    loadTrajectorySim("../assets/trajectories/vel_angular/traj_omega_3.14.txt");
+
+    // --------------------------------------------------------
+    // Parámetros de control de la simulación
+    // --------------------------------------------------------
+
+    float t = 0.f;
+    float last = glfwGetTime();
+    const float trajDt = 0.02f;
 
     bool paused = false;
-    bool thirdPerson = false;
 
     // para evitar múltiples activaciones por pulsación
     bool spacePressedLastFrame = false;
     bool rPressedLastFrame = false;
-    bool vPressedLastFrame = false;
 
     // --------------------------------------------------------
     // Loop
     // --------------------------------------------------------
-    float t = 0.f;
-    float last = glfwGetTime();
-    const float trajDt = 0.02f;
 
     while (!glfwWindowShouldClose(window)){
         // --------------------------------------
@@ -132,7 +167,6 @@ int main()
         // --------------------------------------
         bool spaceNow = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
         bool rNow     = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
-        bool vNow = glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS;
 
         // Toggle pausa
         if (spaceNow && !spacePressedLastFrame)
@@ -148,88 +182,70 @@ int main()
         }
         rPressedLastFrame = rNow;
 
-        if (vNow && !vPressedLastFrame)
-        {
-            thirdPerson = !thirdPerson;
-        }
-        vPressedLastFrame = vNow;
-
         float now = glfwGetTime();
         float dt = now - last;
         last = now;
+
         if (!paused)
         {
             t += dt;
+
+            for (auto& sim : sims)
+            {
+                size_t idx = (size_t)(t / trajDt);
+                sim.currentIdx = std::min(idx, sim.samples.size() - 1);
+            }
         }
-
-        int idx = min((int)(t / trajDt), (int)trajectory.size() - 1);
-        const auto& p = trajectory[idx];
-
-        glm::mat4 view;
-        if (!thirdPerson){
-            camera.updateFromTrajectory(p.x, p.y, p.z, p.theta);
-            view = camera.getViewMatrix();
-        }
-        else{
-            glm::vec3 target(p.x, p.y, p.z);
-
-            glm::vec3 forward(cos(p.theta),sin(p.theta),0.0f);
-
-            float backDist = 4.0f;
-            float height   = 2.0f;
-
-            glm::vec3 camPos = target - forward * backDist + glm::vec3(0, 0, height);
-
-            camera.setPosition(camPos);
-            camera.lookAt(target);
-            view = glm::lookAt(camPos, target, glm::vec3(0, 0, 1));
-        }
-
-        glm::mat4 proj = glm::perspective(
-            glm::radians(60.f),
-            1280.f / 720.f,
-            0.1f,
-            100.f
-        );
 
         glClearColor(0.1f, 0.1f, 0.12f, 1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(program);
 
+        glm::mat4 view = camera.getViewMatrix();
+        glm::mat4 proj = glm::perspective(glm::radians(60.f), 1280.f / 720.f, 0.1f, 100.f);
+
+        glUniformMatrix4fv(uViewLoc, 1, GL_FALSE, &view[0][0]);
+        glUniformMatrix4fv(uProjLoc, 1, GL_FALSE, &proj[0][0]);
+
         glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
         glm::vec3 camPos = camera.getPosition();
+        glUniform3fv(uLightDirLoc, 1, &lightDir[0]);
+        glUniform3fv(uViewPosLoc, 1, &camPos[0]);
+
         glm::mat4 identity(1.0f);
-        glUniform3fv(glGetUniformLocation(program, "uLightDir"), 1, &lightDir[0]);
-        glUniform3fv(glGetUniformLocation(program, "uViewPos"), 1, &camPos[0]);
+        glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, &identity[0][0]);
 
-        glUniformMatrix4fv(glGetUniformLocation(program, "uView"), 1, GL_FALSE, &view[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(program, "uProj"), 1, GL_FALSE, &proj[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(program, "uModel"), 1, GL_FALSE, &identity[0][0]);
-
-        // Floor
+        // Suelo
         glEnable(GL_POLYGON_OFFSET_FILL);
         glPolygonOffset(1.0f, 1.0f);
-        glUniform3f(glGetUniformLocation(program, "uColor"), 0.25f, 0.25f, 0.25f);
+        glUniform3f(uColorLoc, 0.25f, 0.25f, 0.25f);
         renderer.drawFloor();
         glDisable(GL_POLYGON_OFFSET_FILL);
 
         // Grid
-        glUniform3f(glGetUniformLocation(program,"uColor"),0.6f,0.6f,0.6f);
+        glUniform3f(uColorLoc,0.6f,0.6f,0.6f);
         renderer.drawGrid();
 
-        // Trajectory
-        glUniform3f(glGetUniformLocation(program,"uColor"),0.9f,0.2f,0.2f);
-        renderer.drawTrajectory();
+        // Trayectorias
+        for (const auto& sim : sims){
+            glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, &identity[0][0]);
+            glUniform3fv(uColorLoc, 1, &sim.color[0]);
+            renderer.drawTrajectory(sim.VAO, sim.count);
+        }
 
-        // Walls
-        glUniform3f(glGetUniformLocation(program,"uColor"),0.2f,0.7f,0.8f);
+        // Agentes
+        for (auto& sim : sims){
+            const auto& p = sim.samples[sim.currentIdx];
+
+            glUniform3fv(uColorLoc, 1, &sim.color[0]);
+            renderer.drawAgent({p.x, p.y, p.z}, p.theta);
+        }
+
+        // Paredes
+        glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, &identity[0][0]);
+        glUniform3f(uColorLoc, 0.2f, 0.7f, 0.8f);
         renderer.drawWalls();
-
-        // Agent
-        glm::vec3 agentPos(p.x, p.y, p.z);
-        glUniform3f(glGetUniformLocation(program, "uColor"), 0.9f, 0.9f, 0.1f);
-        renderer.drawAgent(agentPos, p.theta);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

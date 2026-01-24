@@ -8,13 +8,13 @@ class Renderer
     public:
         void initGrid();
         void initWalls(const std::vector<float>& wallVertices);
-        void initTrajectory(const std::vector<float>& trajVertices);
+        void initTrajectory(GLuint& vao, GLuint& vbo, GLsizei& count, const std::vector<float>& trajVertices);
         void initFloor(float size);
         void initAgent(float radius);
 
         void drawGrid() const;
         void drawWalls() const;
-        void drawTrajectory() const;
+        void drawTrajectory(GLuint vao, GLsizei count) const;
         void drawFloor() const;
         void drawAgent(const glm::vec3& position, float theta) const;
 
